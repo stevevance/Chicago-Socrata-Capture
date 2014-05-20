@@ -650,6 +650,8 @@ class windy {
 		
 		}
 		
+		echo 'Web Service Request: Request URL ' .$reqURL. ' via ' .$type. ' with ' .$args. '\n';
+		
 		// And execute
 		$response = curl_exec( $curl_handle );
 		$code = curl_getinfo( $curl_handle, CURLINFO_HTTP_CODE );

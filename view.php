@@ -12,7 +12,7 @@ showForm();
 
 function showForm() {
 	$f = "<h1>Chicago Socrata Capture</h1><h2>Copy \"views\" from the City of Chicago data portal to PostgreSQL</h2>";
-	$f .= "<form name='views' method='get'><input type='text' name='view' id='view' size='30' placeholder='Input an 8-digit view ID'><input type='submit' value='Get this view'></form>";
+	$f .= "<form name='views' method='get'><input type='text' name='view' id='view' size='30' placeholder='Input an 9-digit view ID'><input type='submit' value='Get this view'></form>";
 	echo $f;
 	
 	if(!empty($_GET['view'])) {

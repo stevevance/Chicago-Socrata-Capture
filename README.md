@@ -7,6 +7,7 @@ Given an 9-digit view ID, this script will:
 * verify that the view exists on the City of Chicago data portal
 * create a table for this view in your specified PostgreSQL database with appropriate datatypes
 * copy the first 1,000 rows to that table
+* create an info table that keeps track that you're capturing this table (will be useful in the future with the faux-cron system)
 
 How to install
 * change the settings in psql.php to connect to a PostgreSQL database

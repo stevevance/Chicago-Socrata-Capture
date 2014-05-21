@@ -1,6 +1,7 @@
 <?php
 require_once("psql.php");
 require_once("getview.php");
+set_time_limit(0);
 
 //selectOurViews();
 
@@ -34,24 +35,64 @@ function getAllRows($view, $update = false) {
 		echo "<ol>";
 		
 		// create URL
-		$url = buildUrl($view);
+		// CHECK to see if any rows exist, and we'll start from there
+		$result = pg_query($plink, "SELECT count(insert_time) count FROM ".createTableName($view)."_temp");
+		$r = pg_fetch_array($result);
+		var_dump($r);
 		
+		$offset = $r['count'];
+		$url = buildUrl($view, $offset);
+		
+		// FETCH
 		// fetch URL into object for the first time
-		$json = file_get_contents($url);
-		$rows = ingestRowsIntoObject($view, $json);
-		$offset = 0;
+		// old method using file_get_contents
+		// $json = file_get_contents($url);
+		
+		// create a new cURL resource
+		$ch = curl_init();
+		
+		// set URL and other appropriate options
+		curl_setopt($ch, CURLOPT_URL, $url);
+		curl_setopt($ch, CURLOPT_HEADER, 0);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+		
+		// grab URL and pass it to the browser
+		$result = curl_exec($ch); // this is JSON
+		
+		// close cURL resource, and free up system resources
+		curl_close($ch);
+		
+		// PASS JSON to another function
+		$rows = ingestRowsIntoObject($view, $result);
 	
 		// keep fetching the URL but with the offset this time
 		while($rows > 0) { // > 0 or < the max rows you want to fetch
 			$offset = $offset+1000;
 			$url = buildUrl($view, $offset);
-			$json = file_get_contents($url);
 			
-			$rows = ingestRowsIntoObject($view, $json); // when this = 0, or reaches your max, the while() loop will stop
-			echo "<li>Fetched $rows rows</li>";
+			// create a new cURL resource
+			$ch = curl_init();
+			
+			// set URL and other appropriate options
+			curl_setopt($ch, CURLOPT_URL, $url);
+			curl_setopt($ch, CURLOPT_HEADER, 0);
+			curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+			
+			// grab URL and pass it to the browser
+			$result = curl_exec($ch); // this is JSON
+			
+			// close cURL resource, and free up system resources
+			curl_close($ch);
+			
+			// PASS JSON to another function
+			$rows = ingestRowsIntoObject($view, $result); // when this == 0, or reaches your max, the while() loop will stop
+			
+			// IF DONE, copy from TEMP to MAIN table
 			if($rows == 0) {
 				copyFromTempTableToMainTable($view, $update);
 			}
+			
+			// BREAK between loops
 			usleep(100000); // microseconds, one millionth of a second
 		}
 		echo "</ol>";
@@ -97,8 +138,10 @@ function copyFromTempTableToMainTable($view, $update = false) {
 function copyFromObjectToTempTable($view, $object) {
 	global $plink;
 	
+	//echo "<li>Copying an object to temp table</li>"; // this doesn't seem to display to the user
+	
+	$psql = "";
 	foreach($object as $r) {
-		$psql = "";
 		$columns = array_keys($r);
 		$columnsPsql = implode(", ",$columns);
 		
@@ -109,14 +152,10 @@ function copyFromObjectToTempTable($view, $object) {
 		$values = "'".implode("', '",$values)."'";
 		
 		$psql .= "INSERT INTO ".createTableName($view)."_temp (insert_time, $columnsPsql) VALUES (now(), $values);";
-		/*
-echo "<pre>";
-		var_dump($psql);
-		echo "</pre>";
-*/
-		$result = pg_query($plink, $psql);
-		//echo "<li>".$psql."</li>";
 		echo "<li>fetched another row</li>";
 	}
+	
+	$result = pg_query($plink, $psql);
+	//echo "<li>".$psql."</li>";
 }
 ?>

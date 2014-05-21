@@ -58,11 +58,16 @@ function checkViewExistence($view) {
 	//var_dump($check);
 	echo "</pre>";
 	
+	
 	if(is_numeric($check->createdAt)) {
-		storeView($view, $check, $tableName);
-		
-		//displayColumns($check->columns); // comment this line if you don't want to display the columns info
-		createTable($chicago, $check, $view, $tableName);
+		if($check->viewType == "tabular") {
+			storeView($view, $check, $tableName);
+			
+			//displayColumns($check->columns); // comment this line if you don't want to display the columns info
+			createTable($chicago, $check, $view, $tableName);
+		} else {
+			message("View: ".$view." doesn't appear to be tabular and I can only work with tabular views",false);
+		}
 	} else {
 		message("View ".$view." doesn't seem to exist in the data portal",false);
 	}
@@ -102,10 +107,20 @@ IF NOT EXISTS $tableName (
 	$columnsPsql
 )";
 
-	echo $psql;
+	//echo $psql;
 	
 	$result = pg_prepare($plink, "", $psql);
 	$result = pg_execute($plink, "",array()) or die(message("Couldn't create the table for view: $view"));
+	
+	// create a temporary table (for ingesting with cron.php)
+	$tableNameTemp = createTableName($view)."_temp";
+	$psql = "CREATE TABLE
+			IF NOT EXISTS $tableNameTemp (
+				insert_time TIMESTAMP,
+				$columnsPsql
+			)";
+	$result = pg_prepare($plink, "", $psql);
+	$result = pg_execute($plink, "",array()) or die(message("Couldn't create the temporary table for view: $view"));
 	
 	copyViewIntoTable($view, $viewObject, $tableName, $columnsArray);
 }
@@ -189,7 +204,7 @@ function displayColumns($columnsArray) {
 	}
 
 	echo "<pre>";
-	var_dump($columnsArray);
+	//var_dump($columnsArray);
 	echo "</pre>";
 }
 
